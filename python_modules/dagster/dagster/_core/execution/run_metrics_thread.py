@@ -37,6 +37,7 @@ def _process_is_containerized() -> bool:
         return False
 
     target = os.readlink(file)
+    logging.warning("/proc/1/exe points to %s", target)
     if os.path.split(target)[-1] == "init":
         # SysVinit and upstart init - ex: /init, /sbin/init, /etc/init
         if not target == "/dev/init":
@@ -47,6 +48,7 @@ def _process_is_containerized() -> bool:
         return False
 
     # can we detect cgroup v1 or v2?
+    logging.warning("Checking for cgroup version compatibility")
     return compatible_cgroup_version_detected()
 
 
