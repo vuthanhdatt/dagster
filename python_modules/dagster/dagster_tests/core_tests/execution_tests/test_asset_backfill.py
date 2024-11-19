@@ -1136,7 +1136,7 @@ def test_asset_backfill_throw_error_on_invalid_upstreams():
     )
 
     instance = DagsterInstance.ephemeral()
-    with pytest.raises(DagsterInvariantViolationError, match="depends on invalid partition keys"):
+    with pytest.raises(DagsterInvariantViolationError, match="depends on invalid partitions"):
         run_backfill_to_completion(asset_graph, assets_by_repo_name, backfill_data, [], instance)
 
 
