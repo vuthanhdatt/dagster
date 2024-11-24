@@ -529,9 +529,10 @@ def make_random_subset(
 
     return bfs_filter_asset_graph_view(
         asset_graph_view=asset_graph_view,
-        condition_fn=lambda candidate_asset_keys, candidate_subset_value, _: (
+        condition_fn=lambda candidate_asset_graph_subset, _: (
             AssetGraphViewBfsFilterConditionResult(
-                passed_subset_value=candidate_subset_value, excluded_subset_values_and_reasons=[]
+                passed_asset_graph_subset=candidate_asset_graph_subset,
+                excluded_asset_graph_subsets_and_reasons=[],
             )
         ),
         initial_asset_subset=AssetGraphSubset.from_asset_partition_set(
@@ -560,9 +561,10 @@ def make_subset_from_partition_keys(
 
     return bfs_filter_asset_graph_view(
         asset_graph_view=asset_graph_view,
-        condition_fn=lambda candidate_asset_keys, candidate_subset_value, _: (
+        condition_fn=lambda candidate_asset_graph_subset, _: (
             AssetGraphViewBfsFilterConditionResult(
-                passed_subset_value=candidate_subset_value, excluded_subset_values_and_reasons=[]
+                passed_asset_graph_subset=candidate_asset_graph_subset,
+                excluded_asset_graph_subsets_and_reasons=[],
             )
         ),
         initial_asset_subset=AssetGraphSubset.from_asset_partition_set(
@@ -638,11 +640,9 @@ def run_backfill_to_completion(
 
     fail_and_downstream_asset_graph_subset, _ = bfs_filter_asset_graph_view(
         asset_graph_view=asset_graph_view,
-        condition_fn=lambda candidate_asset_keys,
-        candidate_subset_value,
-        _: AssetGraphViewBfsFilterConditionResult(
-            passed_subset_value=candidate_subset_value,
-            excluded_subset_values_and_reasons=[],
+        condition_fn=lambda candidate_asset_graph_subset, _: AssetGraphViewBfsFilterConditionResult(
+            passed_asset_graph_subset=candidate_asset_graph_subset,
+            excluded_asset_graph_subsets_and_reasons=[],
         ),
         initial_asset_subset=AssetGraphSubset.from_asset_partition_set(
             set(fail_asset_partitions), asset_graph

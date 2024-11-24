@@ -1,28 +1,24 @@
 from functools import total_ordering
 from heapq import heapify, heappop, heappush
-from typing import AbstractSet, Callable, Iterable, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Callable, Iterable, NamedTuple, Optional, Sequence, Tuple
 
 import dagster._check as check
 from dagster._core.asset_graph_view.asset_graph_view import AssetGraphView
-from dagster._core.asset_graph_view.serializable_entity_subset import (
-    EntitySubsetValue,
-    SerializableEntitySubset,
-)
+from dagster._core.asset_graph_view.serializable_entity_subset import SerializableEntitySubset
 from dagster._core.definitions.asset_graph_subset import AssetGraphSubset
-from dagster._core.definitions.asset_key import AssetKey
 from dagster._core.definitions.base_asset_graph import BaseAssetGraph
 from dagster._core.definitions.time_window_partitions import get_time_partitions_def
 
 
 class AssetGraphViewBfsFilterConditionResult(NamedTuple):
-    passed_subset_value: EntitySubsetValue
-    excluded_subset_values_and_reasons: Sequence[Tuple[EntitySubsetValue, str]]
+    passed_asset_graph_subset: AssetGraphSubset
+    excluded_asset_graph_subsets_and_reasons: Sequence[Tuple[AssetGraphSubset, str]]
 
 
 def bfs_filter_asset_graph_view(
     asset_graph_view: AssetGraphView,
     condition_fn: Callable[
-        [AbstractSet[AssetKey], "EntitySubsetValue", "AssetGraphSubset"],
+        ["AssetGraphSubset", "AssetGraphSubset"],
         AssetGraphViewBfsFilterConditionResult,
     ],
     initial_asset_subset: "AssetGraphSubset",
@@ -56,47 +52,35 @@ def bfs_filter_asset_graph_view(
 
     # invariant: we never consider an asset partition before considering its ancestors
     queue = ToposortedPriorityQueue(
-        asset_graph_view.asset_graph, initial_subsets, include_full_execution_set=True
+        asset_graph_view, initial_subsets, include_full_execution_set=True
     )
 
     visited_graph_subset = AssetGraphSubset.from_serializable_entity_subsets(initial_subsets)
 
     result: AssetGraphSubset = AssetGraphSubset.empty()
-    failed_reasons: List[Tuple[AssetGraphSubset, str]] = []
+    failed_reasons: Sequence[Tuple[AssetGraphSubset, str]] = []
 
     asset_graph = asset_graph_view.asset_graph
 
     while len(queue) > 0:
-        candidate_keys, candidate_subset_value = queue.dequeue()
-        condition_result = condition_fn(candidate_keys, candidate_subset_value, result)
+        candidate_subset = queue.dequeue()
+        condition_result = condition_fn(candidate_subset, result)
 
-        subset_that_meets_condition = condition_result.passed_subset_value
-        fail_reasons = condition_result.excluded_subset_values_and_reasons
+        subset_that_meets_condition = condition_result.passed_asset_graph_subset
+        failed_reasons = condition_result.excluded_asset_graph_subsets_and_reasons
 
-        for fail_subset_value, fail_reason in fail_reasons:
-            failed_asset_subset = AssetGraphSubset.from_serializable_entity_subsets(
-                [
-                    SerializableEntitySubset(key=asset_key, value=fail_subset_value)
-                    for asset_key in candidate_keys
-                ]
-            )
-            failed_reasons.append((failed_asset_subset, fail_reason))
+        result = result | subset_that_meets_condition
 
-        for candidate_key in candidate_keys:
-            candidate_subset_value = SerializableEntitySubset(
-                candidate_key, subset_that_meets_condition
-            )
+        for candidate_subset_value in subset_that_meets_condition.iterate_asset_subsets(
+            asset_graph_view.asset_graph
+        ):
             if not candidate_subset_value.is_empty:
-                result = result | AssetGraphSubset.from_serializable_entity_subsets(
-                    [candidate_subset_value]
-                )
-
                 matching_entity_subset = check.not_none(
                     asset_graph_view.get_subset_from_serializable_subset(candidate_subset_value)
                 )
 
                 # Add any child subsets that have not yet been visited to the queue
-                for child_key in asset_graph.get(candidate_key).child_keys:
+                for child_key in asset_graph.get(candidate_subset_value.key).child_keys:
                     child_subset = asset_graph_view.compute_child_subset(
                         child_key, matching_entity_subset
                     )
@@ -150,8 +134,7 @@ class ToposortedPriorityQueue:
     class QueueItem(NamedTuple):
         level: int
         partition_sort_key: Optional[float]
-        asset_keys: AbstractSet[AssetKey]
-        entity_subset_value: "EntitySubsetValue"
+        asset_graph_subset: AssetGraphSubset
 
         def __eq__(self, other: object) -> bool:
             if isinstance(other, ToposortedPriorityQueue.QueueItem):
@@ -173,16 +156,18 @@ class ToposortedPriorityQueue:
 
     def __init__(
         self,
-        asset_graph: BaseAssetGraph,
+        asset_graph_view: AssetGraphView,
         items: Iterable["SerializableEntitySubset"],
         include_full_execution_set: bool,
     ):
-        self._asset_graph = asset_graph
+        self._asset_graph_view = asset_graph_view
         self._include_full_execution_set = include_full_execution_set
 
         self._toposort_level_by_asset_key = {
             asset_key: i
-            for i, asset_keys in enumerate(asset_graph.toposorted_asset_keys_by_level)
+            for i, asset_keys in enumerate(
+                asset_graph_view.asset_graph.toposorted_asset_keys_by_level
+            )
             for asset_key in asset_keys
         }
         self._heap = [
@@ -193,12 +178,12 @@ class ToposortedPriorityQueue:
     def enqueue(self, serializable_entity_subset: "SerializableEntitySubset") -> None:
         heappush(self._heap, self._queue_item(serializable_entity_subset))
 
-    def dequeue(self) -> Tuple[AbstractSet[AssetKey], "EntitySubsetValue"]:
+    def dequeue(self) -> AssetGraphSubset:
         # For multi-assets, will include all required multi-asset keys if
         # include_full_execution_set is set to True, or a list of size 1 with just the passed in
         # asset key if it was not. They will all have the same partition range.
         heap_value = heappop(self._heap)
-        return heap_value.asset_keys, heap_value.entity_subset_value
+        return heap_value.asset_graph_subset
 
     def _queue_item(
         self, serializable_entity_subset: "SerializableEntitySubset"
@@ -206,7 +191,9 @@ class ToposortedPriorityQueue:
         asset_key = serializable_entity_subset.key
 
         if self._include_full_execution_set:
-            execution_set_keys = self._asset_graph.get(asset_key).execution_set_asset_keys
+            execution_set_keys = self._asset_graph_view.asset_graph.get(
+                asset_key
+            ).execution_set_asset_keys
         else:
             execution_set_keys = {asset_key}
 
@@ -214,11 +201,21 @@ class ToposortedPriorityQueue:
             self._toposort_level_by_asset_key[asset_key] for asset_key in execution_set_keys
         )
 
+        serializable_entity_subsets = [
+            SerializableEntitySubset(key=asset_key, value=serializable_entity_subset.value)
+            for asset_key in execution_set_keys
+        ]
+
+        asset_graph_subset = AssetGraphSubset.from_serializable_entity_subsets(
+            serializable_entity_subsets
+        )
+
         return ToposortedPriorityQueue.QueueItem(
             level,
-            sort_key_for_serializable_entity_subset(self._asset_graph, serializable_entity_subset),
-            execution_set_keys,
-            serializable_entity_subset.value,
+            sort_key_for_serializable_entity_subset(
+                self._asset_graph_view.asset_graph, serializable_entity_subset
+            ),
+            asset_graph_subset=asset_graph_subset,
         )
 
     def __len__(self) -> int:
