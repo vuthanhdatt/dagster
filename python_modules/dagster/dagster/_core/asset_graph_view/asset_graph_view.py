@@ -6,6 +6,7 @@ from typing import (
     Awaitable,
     Callable,
     Dict,
+    Iterable,
     Literal,
     NamedTuple,
     Optional,
@@ -200,6 +201,19 @@ class AssetGraphView(LoadingContext):
         return self.get_subset_from_serializable_subset(
             asset_graph_subset.get_asset_subset(asset_key, self.asset_graph)
         )
+
+    def iterate_asset_subsets(
+        self, asset_graph_subset: AssetGraphSubset
+    ) -> Iterable[EntitySubset[AssetKey]]:
+        """Returns an Iterable of EntitySubsets representing the subset of each asset that this
+        AssetGraphSubset contains.
+        """
+        for serializable_entity_subset in asset_graph_subset.iterate_asset_subsets(
+            self.asset_graph
+        ):
+            yield check.not_none(
+                self.get_subset_from_serializable_subset(serializable_entity_subset)
+            )
 
     def get_subset_from_serializable_subset(
         self, serializable_subset: SerializableEntitySubset[T_EntityKey]

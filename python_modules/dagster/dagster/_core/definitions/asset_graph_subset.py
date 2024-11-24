@@ -290,23 +290,6 @@ class AssetGraphSubset(NamedTuple):
         )
 
     @classmethod
-    def from_serializable_entity_subsets(
-        cls, entity_subsets: Iterable[SerializableEntitySubset[AssetKey]]
-    ) -> "AssetGraphSubset":
-        return AssetGraphSubset(
-            partitions_subsets_by_asset_key={
-                subset.key: cast(PartitionsSubset, subset.value)
-                for subset in entity_subsets
-                if subset.is_partitioned and not subset.is_empty
-            },
-            non_partitioned_asset_keys={
-                subset.key
-                for subset in entity_subsets
-                if not subset.is_partitioned and not subset.is_empty
-            },
-        )
-
-    @classmethod
     def can_deserialize(
         cls, serialized_dict: Mapping[str, Any], asset_graph: BaseAssetGraph
     ) -> bool:

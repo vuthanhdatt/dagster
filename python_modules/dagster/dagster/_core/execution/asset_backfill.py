@@ -1297,18 +1297,19 @@ def get_asset_backfill_iteration_materialized_partitions(
 
 def _get_subset_in_target_subset(
     asset_graph_view: AssetGraphView,
-    candidate_asset_keys: AbstractSet[AssetKey],
-    candidate_subset_value: EntitySubsetValue,
+    candidate_asset_graph_subset: AssetGraphSubset,
     target_subset: AssetGraphSubset,
 ) -> "EntitySubsetValue":
+
+    result_entity_subset = 
+
+    # If any partition is in the target subset, every asset key for that partition is valid
     result_serializable_entity_subset = asset_graph_view.get_empty_subset(
         key=next(iter(candidate_asset_keys))
     ).convert_to_serializable_subset()
-    for asset_key in candidate_asset_keys:
-        candidate_serializable_entity_subset = SerializableEntitySubset(
-            asset_key,
-            candidate_subset_value,
-        )
+
+    for candidate_entity_subset in asset_graph_view.iterate_asset_subsets(candidate_asset_graph_subset):
+
         result_serializable_entity_subset = result_serializable_entity_subset | (
             candidate_serializable_entity_subset
             & target_subset.get_asset_subset(asset_key, asset_graph_view.asset_graph)
@@ -1335,15 +1336,14 @@ def _get_failed_and_downstream_asset_partitions(
 
     failed_and_downstream_subset = bfs_filter_asset_graph_view(
         asset_graph_view,
-        lambda candidate_asset_keys, candidate_subset_value, _: (
+        lambda candidate_asset_graph_subset, _: (
             AssetGraphViewBfsFilterConditionResult(
-                passed_subset_value=_get_subset_in_target_subset(
+                passed_asset_graph_subset=_get_subset_in_target_subset(
                     asset_graph_view,
-                    candidate_asset_keys,
-                    candidate_subset_value,
+                    candidate_asset_graph_subset,
                     asset_backfill_data.target_subset,
                 ),
-                excluded_subset_values_and_reasons=[],
+                excluded_asset_graph_subsets_and_reasons=[],
             )
         ),
         initial_asset_subset=failed_asset_graph_subset,
