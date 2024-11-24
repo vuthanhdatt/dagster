@@ -1299,23 +1299,45 @@ def _get_subset_in_target_subset(
     asset_graph_view: AssetGraphView,
     candidate_asset_graph_subset: AssetGraphSubset,
     target_subset: AssetGraphSubset,
-) -> "EntitySubsetValue":
+) -> "AssetGraphSubset":
+    candidate_entity_subsets = list(
+        asset_graph_view.iterate_asset_subsets(candidate_asset_graph_subset)
+    )
 
-    result_entity_subset = 
+    # If any asset partition is in the target subset, every other asset key for that partition is in the returned subset
+    # - accomplish this by calculating the result for one asset key and then copying it over to all other asset keys
+    result_entity_subset = asset_graph_view.get_empty_subset(key=candidate_entity_subsets[0].key)
 
-    # If any partition is in the target subset, every asset key for that partition is valid
-    result_serializable_entity_subset = asset_graph_view.get_empty_subset(
-        key=next(iter(candidate_asset_keys))
-    ).convert_to_serializable_subset()
-
-    for candidate_entity_subset in asset_graph_view.iterate_asset_subsets(candidate_asset_graph_subset):
-
-        result_serializable_entity_subset = result_serializable_entity_subset | (
-            candidate_serializable_entity_subset
-            & target_subset.get_asset_subset(asset_key, asset_graph_view.asset_graph)
+    for candidate_entity_subset in candidate_entity_subsets:
+        asset_key = candidate_entity_subset.key
+        subset_in_target_subset = candidate_entity_subset.compute_intersection(
+            check.not_none(
+                asset_graph_view.get_subset_from_serializable_subset(
+                    target_subset.get_asset_subset(asset_key, asset_graph_view.asset_graph)
+                )
+            )
         )
 
-    return result_serializable_entity_subset.value
+        # these may have differnt keys, but will always have the same partition set since they
+        # are part of the same execution set
+        result_entity_subset = result_entity_subset.compute_intersection(subset_in_target_subset)
+
+    # Now need to create a subset for each of the other keys in candidate_entity_subsets with the
+    # values in result_entity_subset
+    final_entity_subsets = [result_entity_subset]
+    for i in range(1, len(candidate_entity_subsets)):
+        candidate_entity_subset = candidate_entity_subsets[i]
+        final_entity_subsets.append(
+            check.not_none(
+                asset_graph_view.get_subset_from_serializable_subset(
+                    SerializableEntitySubset(
+                        candidate_entity_subset.key, result_entity_subset.get_internal_value()
+                    )
+                )
+            )
+        )
+
+    return AssetGraphSubset.from_entity_subsets(final_entity_subsets)
 
 
 def _get_failed_and_downstream_asset_partitions(
@@ -1492,12 +1514,10 @@ def execute_asset_backfill_iteration_inner(
 
     asset_subset_to_request, not_requested_and_reasons = bfs_filter_asset_graph_view(
         asset_graph_view,
-        lambda candidate_asset_keys,
-        candidate_subset_value,
+        lambda candidate_asset_graph_subset,
         visited: should_backfill_atomic_asset_partitions_unit_with_subsets(
             asset_graph_view=asset_graph_view,
-            candidate_asset_keys=candidate_asset_keys,
-            candidate_subset_value=candidate_subset_value,
+            candidate_asset_graph_subset=candidate_asset_graph_subset,
             asset_partitions_to_request=visited,
             materialized_subset=updated_materialized_subset,
             requested_subset=asset_backfill_data.requested_subset,
@@ -1894,8 +1914,7 @@ def get_can_run_with_parent_subsets(
 
 def should_backfill_atomic_asset_partitions_unit_with_subsets(
     asset_graph_view: AssetGraphView,
-    candidate_asset_keys: AbstractSet[AssetKey],
-    candidate_subset_value: EntitySubsetValue,
+    candidate_asset_graph_subset: AssetGraphSubset,
     asset_partitions_to_request: AssetGraphSubset,
     target_subset: AssetGraphSubset,
     requested_subset: AssetGraphSubset,
@@ -1903,9 +1922,18 @@ def should_backfill_atomic_asset_partitions_unit_with_subsets(
     failed_and_downstream_subset: AssetGraphSubset,
 ) -> AssetGraphViewBfsFilterConditionResult:
     final_failure_subsets_with_reasons = []
-    for candidate_asset_key in candidate_asset_keys:
+
+    candidate_entity_subsets = list(
+        asset_graph_view.iterate_asset_subsets(candidate_asset_graph_subset)
+    )
+
+    # this value is the same for all passed in asset keys since they are all part of the same
+    # execution set
+    candidate_subset_value = candidate_entity_subsets[0].get_internal_value()
+
+    for candidate_entity_subset in candidate_entity_subsets:
         candidate_serializable_entity_subset = SerializableEntitySubset(
-            candidate_asset_key,
+            candidate_entity_subset.key,
             candidate_subset_value,
         )
         candidate_serializable_entity_subset, failure_subsets_with_reasons = (
