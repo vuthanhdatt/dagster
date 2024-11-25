@@ -32,33 +32,26 @@ def bfs_filter_asset_graph_view(
 
     - Are >= initial_asset_subset
     - Match the condition_fn
-    - Any of their ancestors >= initial_asset_partitions match the condition_fn
+    - Any of their ancestors >= initial_asset_subset match the condition_fn
 
     Also returns a list of tuples, where each tuple is an asset subset that did not
     satisfy the condition and the reason they were filtered out.
 
     The condition_fn takes in:
-    - a set of asset keys. If there is more than one, the asset keys are part of the same
-    execution set (i.e. non-subsettable multi-asset)
-    - The EntitySubsetValue representing the partitions being evaluated for those key(s) for
-    the condition.
+    - a subset of the asset graph to evaluate the condition for. If include_full_execution_set=True,
+    the asset keys are all part of the same execution set (i.e. non-subsettable multi-asset). If
+    include_full_execution_set=False, only a single asset key will be in the subset.
+
     - An AssetGraphSubset for the portion of the graph that has so far been visited and passed
     the condition.
 
-    The condition_fn should return a object with an EntitySubsetValue indicating the partitions
-    that passed the condition for the suppleid asset keys, and a list of (EntitySubsetValue, str)
+    The condition_fn should return a object with an AssetGraphSubset indicating the portion
+    of the subset that passes the condition, and a list of (AssetGraphSubset, str)
     tuples with more information about why certain subsets were excluded.
 
     Visits parents before children.
     """
-    initial_subsets = [
-        check.not_none(
-            asset_graph_view.get_subset_from_serializable_subset(serializable_entity_subset)
-        )
-        for serializable_entity_subset in initial_asset_subset.iterate_asset_subsets(
-            asset_graph=asset_graph_view.asset_graph
-        )
-    ]
+    initial_subsets = list(asset_graph_view.iterate_asset_subsets(initial_asset_subset))
 
     # invariant: we never consider an asset partition before considering its ancestors
     queue = ToposortedPriorityQueue(
@@ -81,32 +74,27 @@ def bfs_filter_asset_graph_view(
 
         result = result | subset_that_meets_condition
 
-        for candidate_subset_value in subset_that_meets_condition.iterate_asset_subsets(
-            asset_graph_view.asset_graph
+        for matching_entity_subset in asset_graph_view.iterate_asset_subsets(
+            subset_that_meets_condition
         ):
-            if not candidate_subset_value.is_empty:
-                matching_entity_subset = check.not_none(
-                    asset_graph_view.get_subset_from_serializable_subset(candidate_subset_value)
+            # Add any child subsets that have not yet been visited to the queue
+            for child_key in asset_graph.get(matching_entity_subset.key).child_keys:
+                child_subset = asset_graph_view.compute_child_subset(
+                    child_key, matching_entity_subset
                 )
-
-                # Add any child subsets that have not yet been visited to the queue
-                for child_key in asset_graph.get(candidate_subset_value.key).child_keys:
-                    child_subset = asset_graph_view.compute_child_subset(
-                        child_key, matching_entity_subset
-                    )
-                    unvisited_child_subset = child_subset.compute_difference(
-                        check.not_none(
-                            asset_graph_view.get_asset_subset_from_asset_graph_subset(
-                                visited_graph_subset, child_key
-                            )
+                unvisited_child_subset = child_subset.compute_difference(
+                    check.not_none(
+                        asset_graph_view.get_asset_subset_from_asset_graph_subset(
+                            visited_graph_subset, child_key
                         )
                     )
-                    if not unvisited_child_subset.is_empty:
-                        queue.enqueue(unvisited_child_subset)
-                        visited_graph_subset = (
-                            visited_graph_subset
-                            | AssetGraphSubset.from_entity_subsets([unvisited_child_subset])
-                        )
+                )
+                if not unvisited_child_subset.is_empty:
+                    queue.enqueue(unvisited_child_subset)
+                    visited_graph_subset = (
+                        visited_graph_subset
+                        | AssetGraphSubset.from_entity_subsets([unvisited_child_subset])
+                    )
 
     return result, failed_reasons
 
@@ -187,8 +175,9 @@ class ToposortedPriorityQueue:
 
     def dequeue(self) -> AssetGraphSubset:
         # For multi-assets, will include all required multi-asset keys if
-        # include_full_execution_set is set to True, or a list of size 1 with just the passed in
-        # asset key if it was not. They will all have the same partition range.
+        # include_full_execution_set is set to True, or just the passed in
+        # asset key if it was not. If there are multiple assets in the subset
+        # the subset will have the same partitions included for each asset.
         heap_value = heappop(self._heap)
         return heap_value.asset_graph_subset
 
