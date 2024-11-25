@@ -26,6 +26,7 @@ def bfs_filter_asset_graph_view(
         AssetGraphViewBfsFilterConditionResult,
     ],
     initial_asset_subset: "AssetGraphSubset",
+    include_full_execution_set: bool,
 ) -> Tuple[AssetGraphSubset, Sequence[Tuple[AssetGraphSubset, str]]]:
     """Returns the subset of the graph that satisfy supplied criteria.
 
@@ -61,7 +62,7 @@ def bfs_filter_asset_graph_view(
 
     # invariant: we never consider an asset partition before considering its ancestors
     queue = ToposortedPriorityQueue(
-        asset_graph_view, initial_subsets, include_full_execution_set=True
+        asset_graph_view, initial_subsets, include_full_execution_set=include_full_execution_set
     )
 
     visited_graph_subset = initial_asset_subset

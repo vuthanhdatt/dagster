@@ -538,6 +538,7 @@ def make_random_subset(
         initial_asset_subset=AssetGraphSubset.from_asset_partition_set(
             root_asset_partitions, asset_graph
         ),
+        include_full_execution_set=True,
     )[0]
 
 
@@ -570,6 +571,7 @@ def make_subset_from_partition_keys(
         initial_asset_subset=AssetGraphSubset.from_asset_partition_set(
             root_asset_partitions, asset_graph
         ),
+        include_full_execution_set=True,
     )[0]
 
 
@@ -647,6 +649,7 @@ def run_backfill_to_completion(
         initial_asset_subset=AssetGraphSubset.from_asset_partition_set(
             set(fail_asset_partitions), asset_graph
         ),
+        include_full_execution_set=True,
     )
 
     fail_and_downstream_asset_partitions = set(
