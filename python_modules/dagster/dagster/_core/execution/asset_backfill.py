@@ -1499,7 +1499,7 @@ def execute_asset_backfill_iteration_inner(
     asset_subset_to_request, not_requested_and_reasons = bfs_filter_asset_graph_view(
         asset_graph_view,
         lambda candidate_asset_graph_subset,
-        visited: should_backfill_atomic_asset_graph_subset_unit(
+        visited: _should_backfill_atomic_asset_graph_subset_unit(
             asset_graph_view=asset_graph_view,
             candidate_asset_graph_subset_unit=candidate_asset_graph_subset,
             asset_graph_subset_matched_so_far=visited,
@@ -1512,13 +1512,14 @@ def execute_asset_backfill_iteration_inner(
         include_full_execution_set=True,
     )
 
-    asset_partitions_to_request = set(asset_subset_to_request.iterate_asset_partitions())
-
     logger.info(
-        f"Asset partitions to request:\n {_asset_graph_subset_to_str(AssetGraphSubset.from_asset_partition_set(asset_partitions_to_request, asset_graph), asset_graph)}"
-        if asset_partitions_to_request
+        f"Asset partitions to request:\n {_asset_graph_subset_to_str(asset_subset_to_request, asset_graph)}"
+        if asset_subset_to_request
         else "No asset partitions to request."
     )
+
+    asset_partitions_to_request = set(asset_subset_to_request.iterate_asset_partitions())
+
     if len(not_requested_and_reasons) > 0:
 
         def _format_graph_subset(asset_graph_subset: AssetGraphSubset):
@@ -1901,7 +1902,7 @@ def get_can_run_with_parent_subsets(
     )
 
 
-def should_backfill_atomic_asset_graph_subset_unit(
+def _should_backfill_atomic_asset_graph_subset_unit(
     asset_graph_view: AssetGraphView,
     candidate_asset_graph_subset_unit: AssetGraphSubset,
     asset_graph_subset_matched_so_far: AssetGraphSubset,
