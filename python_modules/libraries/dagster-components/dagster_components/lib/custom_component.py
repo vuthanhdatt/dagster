@@ -3,6 +3,7 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping, Optional
 
+import click
 from dagster._utils import snakecase
 from pydantic import BaseModel
 
@@ -12,13 +13,12 @@ from dagster_components.core.component import (
     ComponentLoadContext,
     component,
 )
-from dagster_components.generate import generate_component_yaml
+from dagster_components.generate import generate_custom_component_yaml
 
 if TYPE_CHECKING:
     from dagster._core.definitions.definitions_class import Definitions
 
-CUSTOM_COMPONENT_TEMPLATE = """
-from dagster import Definitions
+CUSTOM_COMPONENT_TEMPLATE = """from dagster import Definitions
 from pydantic import BaseModel, TypeAdapter
 from typing_extensions import Self
 
@@ -27,12 +27,12 @@ from dagster_components.core.component_decl_builder import ComponentDeclNode, Ya
 from dagster_components.lib.custom_component import CustomComponent
 
 
-class {{class_name}}Params(BaseModel): ...
+class {class_name}Params(BaseModel): ...
 
 
-@component(name="{{custom_component_type_name}}")
-class {{class_name}}(CustomComponent):
-    params_schema = {{class_name}}Params 
+@component(name="{custom_component_type_name}")
+class {class_name}(CustomComponent):
+    params_schema = {class_name}Params 
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         return Definitions()
@@ -46,7 +46,7 @@ class {{class_name}}(CustomComponent):
             decl_node.component_file_model.params
         )
         assert loaded_params  # silence linter complaints
-        return ExampleCustomComponent()
+        return {class_name}()
 
 """
 
@@ -54,17 +54,27 @@ class {{class_name}}(CustomComponent):
 class GenerateCustomComponentParams(BaseModel):
     class_name: str
 
+    @staticmethod
+    @click.command
+    @click.option("--class-name", "- ", type=click.STRING)
+    def cli(class_name: str) -> "GenerateCustomComponentParams":
+        return GenerateCustomComponentParams(class_name=class_name)
+
 
 @component(name="custom_component")
 class CustomComponent(Component):
+    generate_params_schema = GenerateCustomComponentParams
+
     @classmethod
     def generate_files(
         cls, request: ComponentGenerateRequest, params: GenerateCustomComponentParams
     ) -> Optional[Mapping[str, Any]]:
-        generate_component_yaml(request, {})
-        replication_path = Path(os.getcwd()) / "replication.yaml"
+        custom_component_type_name = snakecase(params.class_name)
+        generate_custom_component_yaml(
+            request.component_instance_root_path, custom_component_type_name, {}
+        )
+        replication_path = Path(os.getcwd()) / "component.py"
         with open(replication_path, "w") as f:
-            custom_component_type_name = snakecase(params.class_name)
             f.write(
                 CUSTOM_COMPONENT_TEMPLATE.format(
                     class_name=params.class_name,
