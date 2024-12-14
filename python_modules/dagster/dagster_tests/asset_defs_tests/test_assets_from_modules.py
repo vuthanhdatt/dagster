@@ -270,7 +270,9 @@ def test_source_key_prefix(load_fn):
     assert get_assets_def_with_key(
         assets_with_prefix_sources, AssetKey(["foo", "my_cool_prefix", "chuck_berry"])
     ).dependency_keys == {
+        # source prefix
         AssetKey(["bar", "cooler_prefix", "elvis_presley"]),
+        # loadable prefix
         AssetKey(["foo", "my_cool_prefix", "miles_davis"]),
     }
 
