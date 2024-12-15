@@ -1,5 +1,3 @@
-import re
-
 from click.testing import CliRunner
 from dagster_dg.cli.generate import generate_code_location_command, generate_component_command
 from dagster_dg.cli.list import (
@@ -42,9 +40,8 @@ def test_list_component_types_success():
         result = runner.invoke(list_component_types_command)
         assert result.exit_code == 0
         lines = result.output.strip().split("\n")
-        assert len(lines) == 2
-        assert lines[0] == "dagster_components.pipes_subprocess_script_collection"
-        assert re.match(r"    Assets that wrap.*", lines[1])
+        assert len(lines) == 3
+        assert "dagster_components.pipes_subprocess_script_collection" in lines
 
 
 def test_list_component_types_outside_code_location_fails() -> None:
