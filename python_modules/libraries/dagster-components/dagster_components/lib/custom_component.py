@@ -30,7 +30,7 @@ class {class_name}Params(BaseModel): ...
 
 @component(name="{custom_component_type_name}")
 class {class_name}(CustomComponent):
-    params_schema = {class_name}Params 
+    params_schema = {class_name}Params
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         return Definitions()

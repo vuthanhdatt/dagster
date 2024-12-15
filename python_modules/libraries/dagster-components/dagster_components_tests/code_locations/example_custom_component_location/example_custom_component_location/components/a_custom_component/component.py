@@ -10,7 +10,7 @@ class ACustomComponentParams(BaseModel): ...
 
 @component(name="a_custom_component")
 class ACustomComponent(CustomComponent):
-    params_schema = ACustomComponentParams 
+    params_schema = ACustomComponentParams
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         return Definitions()
@@ -25,4 +25,3 @@ class ACustomComponent(CustomComponent):
         )
         assert loaded_params  # silence linter complaints
         return ACustomComponent()
-
