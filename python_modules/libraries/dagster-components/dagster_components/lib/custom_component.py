@@ -18,7 +18,7 @@ from dagster_components.generate import generate_custom_component_yaml
 if TYPE_CHECKING:
     from dagster._core.definitions.definitions_class import Definitions
 
-CUSTOM_COMPONENT_TEMPLATE = """from dagster import Definitions
+CUSTOM_COMPONENT_TEMPLATE = '''from dagster import Definitions
 from dagster_components import ComponentLoadContext, component
 from dagster_components.core.component_decl_builder import ComponentDeclNode, YamlComponentDecl
 from dagster_components.lib.custom_component import CustomComponent
@@ -30,6 +30,7 @@ class {class_name}Params(BaseModel): ...
 
 @component(name="{custom_component_type_name}")
 class {class_name}(CustomComponent):
+    """Write a description of your component here."""
     params_schema = {class_name}Params
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
@@ -46,7 +47,7 @@ class {class_name}(CustomComponent):
         assert loaded_params  # silence linter complaints
         return {class_name}()
 
-"""
+'''
 
 
 class GenerateCustomComponentParams(BaseModel):
@@ -61,6 +62,8 @@ class GenerateCustomComponentParams(BaseModel):
 
 @component(name="custom_component")
 class CustomComponent(Component):
+    """Component base class for generating a custom component local to the component instance."""
+
     generate_params_schema = GenerateCustomComponentParams
 
     @classmethod

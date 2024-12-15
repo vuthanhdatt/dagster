@@ -10,6 +10,8 @@ class ACustomComponentParams(BaseModel): ...
 
 @component(name="a_custom_component")
 class ACustomComponent(CustomComponent):
+    """Write a description of your component here."""
+
     params_schema = ACustomComponentParams
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
