@@ -19,12 +19,10 @@ if TYPE_CHECKING:
     from dagster._core.definitions.definitions_class import Definitions
 
 CUSTOM_COMPONENT_TEMPLATE = """from dagster import Definitions
-from pydantic import BaseModel, TypeAdapter
-from typing_extensions import Self
-
 from dagster_components import ComponentLoadContext, component
 from dagster_components.core.component_decl_builder import ComponentDeclNode, YamlComponentDecl
 from dagster_components.lib.custom_component import CustomComponent
+from pydantic import BaseModel, TypeAdapter
 
 
 class {class_name}Params(BaseModel): ...
@@ -40,7 +38,7 @@ class {class_name}(CustomComponent):
     @classmethod
     def from_decl_node(
         cls, context: "ComponentLoadContext", decl_node: "ComponentDeclNode"
-    ) -> Self:
+    ) -> "{class_name}":
         assert isinstance(decl_node, YamlComponentDecl)
         loaded_params = TypeAdapter(cls.params_schema).validate_python(
             decl_node.component_file_model.params

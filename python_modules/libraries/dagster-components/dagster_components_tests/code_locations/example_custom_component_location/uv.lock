@@ -363,7 +363,7 @@ sling = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dagster" },
+    { name = "dagster", specifier = ">=1.9.5" },
     { name = "dagster-dbt", marker = "extra == 'dbt'" },
     { name = "dagster-embedded-elt", marker = "extra == 'sling'" },
     { name = "dbt-duckdb", marker = "extra == 'test'" },
