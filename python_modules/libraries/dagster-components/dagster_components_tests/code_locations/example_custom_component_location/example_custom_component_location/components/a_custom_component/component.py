@@ -1,4 +1,5 @@
 from dagster import Definitions
+from dagster._core.definitions.asset_spec import AssetSpec
 from dagster_components import ComponentLoadContext, component
 from dagster_components.core.component_decl_builder import ComponentDeclNode, YamlComponentDecl
 from dagster_components.lib.custom_component import CustomComponent
@@ -15,7 +16,9 @@ class ACustomComponent(CustomComponent):
     params_schema = ACustomComponentParams
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
-        return Definitions()
+        # return Definitions()
+        # the line above was initially generated
+        return Definitions(assets=[AssetSpec("asset_key")])
 
     @classmethod
     def from_decl_node(

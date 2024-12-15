@@ -72,7 +72,7 @@ class CustomComponent(Component):
     ) -> Optional[Mapping[str, Any]]:
         custom_component_type_name = snakecase(params.class_name)
         generate_custom_component_yaml(
-            request.component_instance_root_path, custom_component_type_name, {}
+            request.component_instance_root_path, "." + custom_component_type_name, {}
         )
         replication_path = Path(os.getcwd()) / "component.py"
         with open(replication_path, "w") as f:
