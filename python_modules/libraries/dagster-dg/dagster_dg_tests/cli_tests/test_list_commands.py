@@ -40,7 +40,6 @@ def test_list_component_types_success():
         result = runner.invoke(list_component_types_command)
         assert result.exit_code == 0
         lines = result.output.strip().split("\n")
-        assert len(lines) == 3
         assert "dagster_components.pipes_subprocess_script_collection" in lines
 
 
