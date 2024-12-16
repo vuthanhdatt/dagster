@@ -25,7 +25,7 @@ from dagster import (
 from dagster._core.definitions import asset, multi_asset
 from dagster._core.definitions.decorators.hook_decorator import failure_hook, success_hook
 from dagster._core.definitions.definitions_class import Definitions
-from dagster._core.definitions.load_assets_from_modules import prefix_assets
+from dagster._core.definitions.module_loaders.load_assets_from_modules import prefix_assets
 from dagster._core.definitions.partition import (
     StaticPartitionsDefinition,
     static_partitioned_config,
