@@ -1184,6 +1184,7 @@ class AssetsDefinition(ResourceAddable, IHasInternalInit):
         self,
         *,
         output_asset_key_replacements: Mapping[AssetKey, AssetKey] = {},
+        output_check_key_replacements: Mapping[AssetCheckKey, AssetCheckKey] = {},
         input_asset_key_replacements: Mapping[AssetKey, AssetKey] = {},
         group_names_by_key: Mapping[AssetKey, str] = {},
         tags_by_key: Mapping[AssetKey, Mapping[str, str]] = {},
@@ -1255,21 +1256,14 @@ class AssetsDefinition(ResourceAddable, IHasInternalInit):
             )
 
         check_specs_by_output_name = {
-            output_name: check_spec._replace(
-                asset_key=output_asset_key_replacements.get(
-                    check_spec.asset_key, check_spec.asset_key
-                )
+            output_name: check_spec.replace_key(
+                key=output_check_key_replacements.get(check_spec.key, check_spec.key)
             )
             for output_name, check_spec in self.node_check_specs_by_output_name.items()
         }
 
         selected_asset_check_keys = {
-            check_key._replace(
-                asset_key=output_asset_key_replacements.get(
-                    check_key.asset_key, check_key.asset_key
-                )
-            )
-            for check_key in self.check_keys
+            output_check_key_replacements.get(key, key) for key in self.check_keys
         }
 
         replaced_attributes = dict(

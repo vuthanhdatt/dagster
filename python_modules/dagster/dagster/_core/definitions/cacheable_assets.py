@@ -332,27 +332,21 @@ class PrefixOrGroupWrappedCacheableAssetsDefinition(WrappedCacheableAssetsDefini
         )
         output_asset_key_replacements = (
             {
-                k: AssetKey(
-                    path=(
-                        self._prefix_for_all_assets + list(k.path)
-                        if self._prefix_for_all_assets
-                        else k.path
-                    )
-                )
+                k: k.with_prefix(self._prefix_for_all_assets) if self._prefix_for_all_assets else k
                 for k in assets_def.keys
             }
             if self._prefix_for_all_assets
             else self._output_asset_key_replacements
         )
+        check_key_replacements = {
+            k: k.with_asset_key_prefix(self._prefix_for_all_assets)
+            if self._prefix_for_all_assets
+            else k
+            for k in assets_def.check_keys
+        }
         input_asset_key_replacements = (
             {
-                k: AssetKey(
-                    path=(
-                        self._prefix_for_all_assets + list(k.path)
-                        if self._prefix_for_all_assets
-                        else k.path
-                    )
-                )
+                k: k.with_prefix(self._prefix_for_all_assets) if self._prefix_for_all_assets else k
                 for k in assets_def.dependency_keys
             }
             if self._prefix_for_all_assets
@@ -369,6 +363,7 @@ class PrefixOrGroupWrappedCacheableAssetsDefinition(WrappedCacheableAssetsDefini
         return assets_def.with_attributes(
             output_asset_key_replacements=output_asset_key_replacements,
             input_asset_key_replacements=input_asset_key_replacements,
+            output_check_key_replacements=check_key_replacements,
             group_names_by_key=group_names_by_key,
             freshness_policy=self._freshness_policy,
             automation_condition=automation_condition,
