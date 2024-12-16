@@ -1,6 +1,5 @@
 import pytest
 from dagster import (
-    AssetChecksDefinition,
     AssetKey,
     Definitions,
     asset_check,
@@ -12,6 +11,7 @@ from dagster import (
     load_assets_from_package_module,
     load_assets_from_package_name,
 )
+from dagster._core.definitions.asset_checks import has_only_asset_checks
 
 from dagster_tests.definitions_tests.decorators_tests.test_asset_check_decorator import (
     execute_assets_and_checks,
@@ -24,7 +24,7 @@ def test_load_asset_checks_from_modules():
 
     checks = load_asset_checks_from_modules([checks_module])
     assert len(checks) == 1
-    assert all(isinstance(check, AssetChecksDefinition) for check in checks)
+    assert all(has_only_asset_checks(check) for check in checks)
 
     asset_check_1_key = next(iter(asset_check_1.check_keys))
 
@@ -51,7 +51,7 @@ def test_load_asset_checks_from_modules_prefix():
 
     checks = load_asset_checks_from_modules([checks_module], asset_key_prefix="foo")
     assert len(checks) == 1
-    assert all(isinstance(check, AssetChecksDefinition) for check in checks)
+    assert all(has_only_asset_checks(check) for check in checks)
 
     check_key = next(iter(checks[0].check_keys))
     assert check_key.asset_key == AssetKey(["foo", "asset_1"])
@@ -79,7 +79,7 @@ def check_in_current_module():
 def test_load_asset_checks_from_current_module():
     checks = load_asset_checks_from_current_module(asset_key_prefix="foo")
     assert len(checks) == 1
-    assert all(isinstance(check, AssetChecksDefinition) for check in checks)
+    assert all(has_only_asset_checks(check) for check in checks)
     check_key = next(iter(checks[0].check_keys))
     assert check_key.name == "check_in_current_module"
     assert check_key.asset_key == AssetKey(["foo", "asset_1"])
@@ -104,7 +104,7 @@ def test_load_asset_checks_from_package(load_fns):
 
     checks = checks_load_fn(checks_module, asset_key_prefix="foo")
     assert len(checks) == 2
-    assert all(isinstance(check, AssetChecksDefinition) for check in checks)
+    assert all(has_only_asset_checks(check) for check in checks)
     check_key_0 = next(iter(checks[0].check_keys))
     assert check_key_0.name == "asset_check_1"
     assert check_key_0.asset_key == AssetKey(["foo", "asset_1"])

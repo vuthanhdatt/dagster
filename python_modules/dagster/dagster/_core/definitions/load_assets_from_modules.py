@@ -224,8 +224,9 @@ def load_assets_from_modules(
     """
 
     def _asset_filter(asset: LoadableAssetTypes) -> bool:
-        if isinstance(asset, AssetsDefinition) and not has_only_asset_checks(asset):
-            return True
+        if isinstance(asset, AssetsDefinition):
+            # We don't load asset checks with asset module loaders.
+            return not has_only_asset_checks(asset)
         if isinstance(asset, AssetSpec):
             return include_specs
         return True
@@ -439,14 +440,6 @@ def replace_keys_in_asset(
                 key: key_replacements.get(key, key) for key in asset.keys_by_input_name.values()
             },
         )
-        if isinstance(asset, AssetsDefinition) and has_only_asset_checks(asset):
-            updated_object = AssetChecksDefinition.create(
-                keys_by_input_name=updated_object.keys_by_input_name,
-                node_def=updated_object.op,
-                check_specs_by_output_name=updated_object.check_specs_by_output_name,
-                resource_defs=updated_object.resource_defs,
-                can_subset=updated_object.can_subset,
-            )
         return updated_object
 
 
@@ -556,14 +549,6 @@ class ResolvedAssetObjectList:
                 ).with_attributes(
                     backfill_policy=backfill_policy, freshness_policy=freshness_policy
                 )
-                if isinstance(asset, AssetChecksDefinition):
-                    new_asset = AssetChecksDefinition.create(
-                        keys_by_input_name=new_asset.keys_by_input_name,
-                        node_def=new_asset.op,
-                        check_specs_by_output_name=new_asset.check_specs_by_output_name,
-                        resource_defs=new_asset.resource_defs,
-                        can_subset=new_asset.can_subset,
-                    )
                 return_list.append(new_asset)
             elif isinstance(asset, SourceAsset):
                 return_list.append(
