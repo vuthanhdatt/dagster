@@ -2,30 +2,28 @@ from typing import Optional, Sequence
 
 import pytest
 from dagster_components.core.component_rendering import (
+    ScopedField,
     TemplatedValueResolver,
     _should_render,
-    add_required_rendering_context,
     preprocess_value,
 )
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 
 class Inner(BaseModel):
     a: Optional[str] = None
-    deferred: Optional[str] = add_required_rendering_context(
-        Field(default=None), {"foo", "bar", "baz"}
-    )
+    deferred: Optional[str] = ScopedField(required_scope={"foo", "bar", "baz"})
 
 
 class Outer(BaseModel):
     a: str
-    deferred: str = add_required_rendering_context(Field(), {"a"})
+    deferred: str = ScopedField(required_scope={"a"})
     inner: Sequence[Inner]
-    inner_deferred: Sequence[Inner] = add_required_rendering_context(Field(), {"b"})
+    inner_deferred: Sequence[Inner] = ScopedField(required_scope={"b"})
 
     inner_optional: Optional[Sequence[Inner]] = None
-    inner_deferred_optional: Optional[Sequence[Inner]] = add_required_rendering_context(
-        Field(default=None), {"b"}
+    inner_deferred_optional: Optional[Sequence[Inner]] = ScopedField(
+        default=None, required_scope={"b"}
     )
 
 
