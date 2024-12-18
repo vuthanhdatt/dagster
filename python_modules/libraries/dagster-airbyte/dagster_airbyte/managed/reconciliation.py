@@ -49,7 +49,7 @@ from dagster_airbyte.managed.types import (
     InitializedAirbyteSource,
 )
 from dagster_airbyte.resources import AirbyteResource
-from dagster_airbyte.utils import is_basic_normalization_operation, clean_name
+from dagster_airbyte.utils import clean_name, is_basic_normalization_operation
 
 
 def gen_configured_stream_json(

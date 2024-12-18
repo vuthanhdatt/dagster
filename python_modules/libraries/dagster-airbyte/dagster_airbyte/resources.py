@@ -1257,9 +1257,7 @@ class AirbyteCloudWorkspace(ConfigurableResource):
                     metadata=stream_asset_spec.metadata,
                 )
 
-    def sync_and_poll(
-        self, context: Union[OpExecutionContext, AssetExecutionContext]
-    ):
+    def sync_and_poll(self, context: Union[OpExecutionContext, AssetExecutionContext]):
         """Executes a sync and poll process to materialize Airbyte Cloud assets.
 
         Args:
